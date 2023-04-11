@@ -3,6 +3,7 @@
 
 #include "DungeonGenerator.h"
 
+#include "CustomSpline.h"
 #include "DelaunayTriangulation.h"
 #include "MST.h"
 #include "StaticMeshAttributes.h"
@@ -40,7 +41,7 @@ void ADungeonGenerator::GenerateDungeon()
 			Cell->SetActorScale3D(FVector(FMath::RandRange(MinSize, MaxSize),
 											FMath::RandRange(MinSize, MaxSize),
 											0.5));
-			Cell->GetStaticMeshComponent()->SetStaticMesh(MeshObj);
+			Cell->GetStaticMeshComponent()->SetStaticMesh(RoomMesh);
 			SpawnedCells.Add(Cell);
 		}
 		
@@ -74,17 +75,43 @@ void ADungeonGenerator::GenerateDungeon()
 		
 		for (auto Edge : DT.edges)
 		{
-			DrawDebugLine(GetWorld(), Edge.p0, Edge.p1, FColor::Blue, true);
 			if (UKismetMathLibrary::RandomFloat() > 0.9)
 			{
 				MST.push_back(Edge);
 			}
-			
 		}
 
 		for (auto Edge : MST)
 		{
-			DrawDebugLine(GetWorld(), Edge.p0, Edge.p1, FColor::Yellow, true);
+			FVector pathLoc = Edge.p1 - Edge.p0;
+			int count = trunc(pathLoc.X/SectionLegnth);
+			int dir = count < 0 ? -1:1;
+			for (int pathCountX = 0; pathCountX < abs(count) + 1 ; pathCountX++)
+			{
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+				FVector Location = FVector(Edge.p0.X + pathCountX*SectionLegnth * dir, Edge.p0.Y, -35);
+				auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
+				                                                     FRotator::ZeroRotator, SpawnParams);
+				path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
+				SpawnedPath.Add(path);
+			}
+
+			count = trunc(pathLoc.Y/SectionLegnth);
+			dir = count < 0 ? 1:-1;
+			for (int pathCountY = 0; pathCountY < abs(count) + 1; pathCountY++)
+			{
+				FActorSpawnParameters SpawnParams;
+				SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+				FVector Location = FVector(Edge.p1.X, Edge.p1.Y + pathCountY*SectionLegnth * dir, -35);
+				auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
+																	 FRotator::ZeroRotator, SpawnParams);
+				path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
+				SpawnedPath.Add(path);
+			}
+			
+			
+			//DrawDebugLine(GetWorld(), Edge.p0, Edge.p1, FColor::Yellow, true);
 		}
 	}
 }
@@ -96,8 +123,14 @@ void ADungeonGenerator::ClearDungeon()
 		Cell->Destroy();
 	}
 
+	for (const auto Path : SpawnedPath)
+	{
+		Path->Destroy();
+	}
+
 	SpawnedCells.Empty();
 	Rooms.Empty();
+	SpawnedPath.Empty();
 	FlushPersistentDebugLines(GetWorld());
 }
 

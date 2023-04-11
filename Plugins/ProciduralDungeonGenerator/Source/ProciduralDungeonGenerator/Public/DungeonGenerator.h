@@ -20,8 +20,14 @@ protected:
 	virtual void BeginPlay() override;
 	
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
-	UStaticMesh* MeshObj;
+	UStaticMesh* RoomMesh;
 
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
+	UStaticMesh* PathMesh;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
+	float SectionLegnth{100};
+	
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
 	int NumberOfCells;
 
@@ -50,6 +56,7 @@ public:
 private:
 
 	TArray<class AStaticMeshActor*> SpawnedCells;
+	TArray<class AStaticMeshActor*> SpawnedPath;
 	TArray<FVector> Rooms;
 
 	FVector Separate(AStaticMeshActor* CurrentCell);
