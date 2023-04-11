@@ -48,6 +48,9 @@ protected:
 	
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
 	float MaxDistance;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
+	int SnapSize{5};
 	
 public:	
 	// Called every frame
@@ -62,5 +65,6 @@ private:
 	FVector Separate(AStaticMeshActor* CurrentCell);
 
 	FVector GetRandomPointInCircle(float radius);
-	
+	int RoundM(float loc, int snapSize);
+	FVector RoundM(FVector loc, int snapSize);
 };
