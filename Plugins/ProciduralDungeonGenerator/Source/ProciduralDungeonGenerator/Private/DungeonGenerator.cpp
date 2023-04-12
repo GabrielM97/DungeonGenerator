@@ -90,37 +90,94 @@ void ADungeonGenerator::GenerateDungeon()
 
 		for (auto Edge : MST)
 		{
-			FVector pathLoc = Edge.p1 - Edge.p0;
-			int count = trunc(pathLoc.X / SectionLegnth);
-			int dir = count < 0 ? -1 : 1;
-			for (int pathCountX = 0; pathCountX < abs(count); pathCountX++)
+
+			Bounds b0 = GetRoomExtentByLocation(Edge.p0);
+			Bounds b1 = GetRoomExtentByLocation(Edge.p1);
+
+			DGEdge dgedge = GetClosestEdge(Edge.p0, Edge.p1);
+			
+			FVector pathLoc = dgedge.p1 - dgedge.p0;
+			int countX = trunc(pathLoc.X / SectionLegnth);
+			int countY = trunc(pathLoc.Y / SectionLegnth);
+			int dirX = countX < 0 ? -1 : 1;
+			int dirY = countY < 0 ? -1 : 1;
+
+			int TotalBlocksToSpawn = abs(countX) + abs(countY) + 1;
+
+			FVector Location = dgedge.p0;
+			
+			while (TotalBlocksToSpawn > 0)
 			{
+				//spawn Y
+				if (TotalBlocksToSpawn <= abs(countY))
+				{
+					FActorSpawnParameters SpawnParams;
+					SpawnParams.SpawnCollisionHandlingOverride =
+						ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+				
+					Location.Y += SectionLegnth*dirY;
+					
+					auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
+																	 FRotator::ZeroRotator, SpawnParams);
+					path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
+					SpawnedPath.Add(path);
+				
+					
+					--TotalBlocksToSpawn;
+					continue;
+				}
+
+				//spawn x
 				FActorSpawnParameters SpawnParams;
 				SpawnParams.SpawnCollisionHandlingOverride =
 					ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-				FVector Location = RoundM(FVector(Edge.p0.X + pathCountX * SectionLegnth * dir, Edge.p0.Y, -35), SnapSize);
+				
+				Location.X += SectionLegnth*dirX;
+				
 				auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
-				                                                     FRotator::ZeroRotator, SpawnParams);
+																 FRotator::ZeroRotator, SpawnParams);
 				path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
 				SpawnedPath.Add(path);
+				
+
+				--TotalBlocksToSpawn;
 			}
+			
+			// for (int pathCountX = 0; pathCountX < abs(count)+1; pathCountX++)
+			// {
+			// 	FActorSpawnParameters SpawnParams;
+			// 	SpawnParams.SpawnCollisionHandlingOverride =
+			// 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+			// 	FVector Location = RoundM(FVector(dgedge.p0.X  + (pathCountX * SectionLegnth * dir), dgedge.p0.Y, 0), SnapSize);
+			// 	if (!b0.Overlap(Location) && !b1.Overlap(Location))
+			// 	{
+			// 		auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
+			// 														 FRotator::ZeroRotator, SpawnParams);
+			// 		path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
+			// 		SpawnedPath.Add(path);
+			// 	}
+			// 	
+			// }
+			//
+			// count = trunc(pathLoc.Y / SectionLegnth);
+			// dir = count < 0 ? 1 : -1;
+			// for (int pathCountY = 0; pathCountY < abs(count)+1; pathCountY++)
+			// {
+			// 	FActorSpawnParameters SpawnParams;
+			// 	SpawnParams.SpawnCollisionHandlingOverride =
+			// 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+			// 	FVector Location = RoundM(FVector(dgedge.p1.X, dgedge.p1.Y + pathCountY * SectionLegnth * dir, 0), SnapSize);
+			// 	if (!b0.Overlap(Location) && !b1.Overlap(Location))
+			// 	{
+			// 		auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
+			// 														 FRotator::ZeroRotator, SpawnParams);
+			// 		path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
+			// 		SpawnedPath.Add(path);
+			// 	}
+			// }
 
-			count = trunc(pathLoc.Y / SectionLegnth);
-			dir = count < 0 ? 1 : -1;
-			for (int pathCountY = 0; pathCountY < abs(count)+1; pathCountY++)
-			{
-				FActorSpawnParameters SpawnParams;
-				SpawnParams.SpawnCollisionHandlingOverride =
-					ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-				FVector Location = RoundM(FVector(Edge.p1.X, Edge.p1.Y + pathCountY * SectionLegnth * dir, -35), SnapSize);
-				auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
-				                                                     FRotator::ZeroRotator, SpawnParams);
-				path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
-				SpawnedPath.Add(path);
-			}
 
-
-			//DrawDebugLine(GetWorld(), Edge.p0, Edge.p1, FColor::Yellow, true);
+			DrawDebugLine(GetWorld(), Edge.p0, Edge.p1, FColor::Yellow, true);
 		}
 	}
 }
