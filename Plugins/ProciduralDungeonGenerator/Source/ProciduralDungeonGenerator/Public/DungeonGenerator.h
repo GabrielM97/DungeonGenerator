@@ -3,8 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DelaunayTriangulation.h"
 #include "GameFramework/Actor.h"
 #include "DungeonGenerator.generated.h"
+
+using DGEdge = DelaunayTriangle3D::Edge<UE::Math::TVector<double>>;
+
+struct Bounds
+{
+	FVector Origin;
+	FVector Extent;
+};
 
 UCLASS()
 class PROCIDURALDUNGEONGENERATOR_API ADungeonGenerator : public AActor
@@ -67,4 +76,6 @@ private:
 	FVector GetRandomPointInCircle(float radius);
 	int RoundM(float loc, int snapSize);
 	FVector RoundM(FVector loc, int snapSize);
+	Bounds GetRoomExtentByLocation(FVector Location);
+	DGEdge GetClosestEdge(FVector start, FVector end);
 };

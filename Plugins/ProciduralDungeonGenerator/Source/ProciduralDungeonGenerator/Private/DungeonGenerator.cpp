@@ -66,6 +66,14 @@ void ADungeonGenerator::GenerateDungeon()
 
 				//SpawnedCells.Remove(Cell);
 				Rooms.Add(Cell->GetActorLocation());
+				
+			}else if(UKismetMathLibrary::RandomFloat() > 0.85)
+			{
+				Rooms.Add(Cell->GetActorLocation());
+			}
+			else
+			{
+				Cell->GetStaticMeshComponent()->SetVisibility(false);
 			}
 		}
 
@@ -99,7 +107,7 @@ void ADungeonGenerator::GenerateDungeon()
 
 			count = trunc(pathLoc.Y / SectionLegnth);
 			dir = count < 0 ? 1 : -1;
-			for (int pathCountY = 0; pathCountY < abs(count); pathCountY++)
+			for (int pathCountY = 0; pathCountY < abs(count)+1; pathCountY++)
 			{
 				FActorSpawnParameters SpawnParams;
 				SpawnParams.SpawnCollisionHandlingOverride =
@@ -196,4 +204,63 @@ FVector ADungeonGenerator::RoundM(FVector loc, int snapSize)
 	return FVector(FMath::Floor(((loc.X + SnapSize - 1) / SnapSize)) * SnapSize,
 								FMath::Floor(((loc.Y + SnapSize - 1) / SnapSize)) * SnapSize,
 								0) ;
+}
+
+
+Bounds ADungeonGenerator::GetRoomExtentByLocation(FVector Location)
+{
+	const auto room = *SpawnedCells.FindByPredicate(
+			[Location](const AStaticMeshActor* MeshActor){return MeshActor->GetActorLocation() == Location;});
+	Bounds bounds;
+	room->GetActorBounds(true, bounds.Origin, bounds.Extent);
+	return bounds;
+}
+
+DGEdge ADungeonGenerator::GetClosestEdge(FVector start, FVector end)
+{
+	Bounds b0 = GetRoomExtentByLocation(start);
+	Bounds b1 = GetRoomExtentByLocation(end);
+	
+	TArray<DGEdge> sortarr;
+
+	//start bound
+	FVector p01 = FVector( start.X ,start.Y - b0.Extent.Y, start.Z);
+	FVector p02 = FVector( start.X + b0.Extent.X, start.Y, start.Z);
+	FVector p03 = FVector( start.X ,start.Y + b0.Extent.Y, start.Z);
+	FVector p04 = FVector( start.X - b0.Extent.X, start.Y, start.Z);
+
+	//end bounds
+	FVector p11 = FVector( end.X ,end.Y - b1.Extent.Y, end.Z);
+	FVector p12 = FVector( end.X + b1.Extent.X, end.Y, end.Z);
+	FVector p13 = FVector( end.X ,end.Y + b1.Extent.Y, end.Z);
+	FVector p14 = FVector( end.X - b1.Extent.X, end.Y, end.Z);
+	
+	// FVector P02P14 = FVector(end.X - b1.Extent.X, end.Y, end.Z) - FVector( start.X + b0.Extent.X, start.Y, start.Z);
+	// FVector P02P13 = FVector(end.X, end.Y + b1.Extent.Y, end.Z) - FVector( start.X + b0.Extent.X, start.Y, start.Z);
+	// FVector P01P14 = FVector(end.X - b1.Extent.X, end.Y, end.Z) - FVector( start.X ,start.Y - b0.Extent.Y, start.Z);
+	// FVector P01P13 = FVector(end.X, end.Y + b1.Extent.Y, end.Z) - FVector( start.X, start.Y - b0.Extent.Y, start.Z);
+
+	sortarr.Add({p01, p11, static_cast<int>(FVector::Distance(p11, p01))});
+	sortarr.Add({p01, p12, static_cast<int>(FVector::Distance(p12, p01))});
+	sortarr.Add({p01, p13, static_cast<int>(FVector::Distance(p13, p01))});
+	sortarr.Add({p01, p14, static_cast<int>(FVector::Distance(p14, p01))});
+	
+	sortarr.Add({p02, p11, static_cast<int>(FVector::Distance(p11, p02))});
+	sortarr.Add({p02, p12, static_cast<int>(FVector::Distance(p12, p02))});
+	sortarr.Add({p02, p13, static_cast<int>(FVector::Distance(p13, p02))});
+	sortarr.Add({p02, p14, static_cast<int>(FVector::Distance(p14, p02))});
+	
+	sortarr.Add({p03, p11, static_cast<int>(FVector::Distance(p11, p03))});
+	sortarr.Add({p03, p12, static_cast<int>(FVector::Distance(p12, p03))});
+	sortarr.Add({p03, p13, static_cast<int>(FVector::Distance(p13, p03))});
+	sortarr.Add({p03, p14, static_cast<int>(FVector::Distance(p14, p03))});
+	
+	sortarr.Add({p04, p11, static_cast<int>(FVector::Distance(p11, p04))});
+	sortarr.Add({p04, p12, static_cast<int>(FVector::Distance(p12, p04))});
+	sortarr.Add({p04, p13, static_cast<int>(FVector::Distance(p13, p04))});
+	sortarr.Add({p04, p14, static_cast<int>(FVector::Distance(p14, p04))});
+
+	sortarr.Sort();
+
+	return sortarr[0];
 }

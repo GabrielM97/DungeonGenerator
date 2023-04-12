@@ -24,6 +24,11 @@ namespace DelaunayTriangle3D
 			return ((other.p0 == p0 && other.p1 == p1) ||
 				(other.p0 == p1 && other.p1 == p0));
 		}
+
+		bool operator<(const Edge& other) const
+		{
+			return Weight < other.Weight;
+		}
 	};
 
 	template <typename T>
