@@ -46,10 +46,10 @@ protected:
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
 	int NumberOfCells;
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category="Dungeon Generation")
+	UFUNCTION(BlueprintCallable, Category="Dungeon Generation")
 	void GenerateDungeon();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category="Dungeon Generation")
+	UFUNCTION(BlueprintCallable, Category="Dungeon Generation")
 	void ClearDungeon();
 	
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
@@ -62,7 +62,7 @@ protected:
 	float SpawnRadius;
 	
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
-	float MaxDistance;
+	float MinDistance;
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category="Dungeon Generation")
 	int SnapSize{5};
@@ -84,4 +84,8 @@ private:
 	FVector RoundM(FVector loc, int snapSize);
 	Bounds GetRoomExtentByLocation(FVector Location);
 	DGEdge GetClosestEdge(FVector start, FVector end);
+	bool IsOverlappingRoom(FVector loc);
+
+	bool bIsDungeonGenerating = false;
+	bool bIsSeparating = false;
 };

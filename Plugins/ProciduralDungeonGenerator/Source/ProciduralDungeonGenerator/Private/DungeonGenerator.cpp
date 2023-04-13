@@ -27,158 +27,30 @@ void ADungeonGenerator::GenerateDungeon()
 {
 	if (const auto World = GetWorld())
 	{
+		bIsDungeonGenerating = true;
 		//Spawn Cells
 		for (int CellSpawned = 0; CellSpawned < NumberOfCells; ++CellSpawned)
 		{
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.SpawnCollisionHandlingOverride =
-				ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+				ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 			FVector Location = GetRandomPointInCircle(SpawnRadius);
 			auto Cell = World->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
 			                                                FRotator::ZeroRotator, SpawnParams);
-			Cell->SetActorScale3D(FVector(FMath::RandRange(MinSize, MaxSize),
-			                              FMath::RandRange(MinSize, MaxSize),
+			Cell->SetActorScale3D(FVector(FMath::RandRange(MinSize, MaxSize)*2,
+			                              FMath::RandRange(MinSize, MaxSize)*2,
 			                              0.5));
+			
+			Cell->SetMobility(EComponentMobility::Movable);
+			Cell->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+			Cell->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			Cell->GetStaticMeshComponent()->SetCollisionObjectType(ECC_WorldDynamic);
+			Cell->GetStaticMeshComponent()->SetCollisionResponseToAllChannels(ECR_Block);
 			Cell->GetStaticMeshComponent()->SetStaticMesh(RoomMesh);
 			SpawnedCells.Add(Cell);
 		}
-
-		for (const auto Cell : SpawnedCells)
-		{
-			//Separate
-			auto Vel = RoundM(Separate(Cell), SnapSize);
-			int Attempts = 0;
-			while (Vel != FVector::ZeroVector && Attempts < 10)
-			{
-				Cell->SetActorLocation(Cell->GetActorLocation() + Vel);
-				Vel = RoundM(Separate(Cell), SnapSize);
-				++Attempts;
-			}
-
-			//Determine which cells can be rooms
-
-			if (Cell->GetActorScale().X > MinSize + 5 && Cell->GetActorScale().Y > MinSize + 5)
-			{
-				UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(
-					Cell->GetStaticMeshComponent()->GetMaterial(0), NULL);
-				material->SetVectorParameterValue(FName(TEXT("SurfaceColor")), FLinearColor(0.9f, 0.1f, 0.1f));
-				Cell->GetStaticMeshComponent()->SetMaterial(0, material);
-
-				//SpawnedCells.Remove(Cell);
-				Rooms.Add(Cell->GetActorLocation());
-				
-			}else if(UKismetMathLibrary::RandomFloat() > 0.85)
-			{
-				Rooms.Add(Cell->GetActorLocation());
-			}
-			else
-			{
-				Cell->GetStaticMeshComponent()->SetVisibility(false);
-			}
-		}
-
-		auto DT = DelaunayTriangle3D::triangulate<FVector>(Rooms);
-		auto MST = MST::MinimumSpanningTree(DT.edges, DT.edges[0].p0);
-
-		for (auto Edge : DT.edges)
-		{
-			if (UKismetMathLibrary::RandomFloat() > 0.9)
-			{
-				MST.push_back(Edge);
-			}
-		}
-
-		for (auto Edge : MST)
-		{
-
-			Bounds b0 = GetRoomExtentByLocation(Edge.p0);
-			Bounds b1 = GetRoomExtentByLocation(Edge.p1);
-
-			DGEdge dgedge = GetClosestEdge(Edge.p0, Edge.p1);
-			
-			FVector pathLoc = dgedge.p1 - dgedge.p0;
-			int countX = trunc(pathLoc.X / SectionLegnth);
-			int countY = trunc(pathLoc.Y / SectionLegnth);
-			int dirX = countX < 0 ? -1 : 1;
-			int dirY = countY < 0 ? -1 : 1;
-
-			int TotalBlocksToSpawn = abs(countX) + abs(countY) + 1;
-
-			FVector Location = dgedge.p0;
-			
-			while (TotalBlocksToSpawn > 0)
-			{
-				//spawn Y
-				if (TotalBlocksToSpawn <= abs(countY))
-				{
-					FActorSpawnParameters SpawnParams;
-					SpawnParams.SpawnCollisionHandlingOverride =
-						ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-				
-					Location.Y += SectionLegnth*dirY;
-					
-					auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
-																	 FRotator::ZeroRotator, SpawnParams);
-					path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
-					SpawnedPath.Add(path);
-				
-					
-					--TotalBlocksToSpawn;
-					continue;
-				}
-
-				//spawn x
-				FActorSpawnParameters SpawnParams;
-				SpawnParams.SpawnCollisionHandlingOverride =
-					ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-				
-				Location.X += SectionLegnth*dirX;
-				
-				auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
-																 FRotator::ZeroRotator, SpawnParams);
-				path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
-				SpawnedPath.Add(path);
-				
-
-				--TotalBlocksToSpawn;
-			}
-			
-			// for (int pathCountX = 0; pathCountX < abs(count)+1; pathCountX++)
-			// {
-			// 	FActorSpawnParameters SpawnParams;
-			// 	SpawnParams.SpawnCollisionHandlingOverride =
-			// 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-			// 	FVector Location = RoundM(FVector(dgedge.p0.X  + (pathCountX * SectionLegnth * dir), dgedge.p0.Y, 0), SnapSize);
-			// 	if (!b0.Overlap(Location) && !b1.Overlap(Location))
-			// 	{
-			// 		auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
-			// 														 FRotator::ZeroRotator, SpawnParams);
-			// 		path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
-			// 		SpawnedPath.Add(path);
-			// 	}
-			// 	
-			// }
-			//
-			// count = trunc(pathLoc.Y / SectionLegnth);
-			// dir = count < 0 ? 1 : -1;
-			// for (int pathCountY = 0; pathCountY < abs(count)+1; pathCountY++)
-			// {
-			// 	FActorSpawnParameters SpawnParams;
-			// 	SpawnParams.SpawnCollisionHandlingOverride =
-			// 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-			// 	FVector Location = RoundM(FVector(dgedge.p1.X, dgedge.p1.Y + pathCountY * SectionLegnth * dir, 0), SnapSize);
-			// 	if (!b0.Overlap(Location) && !b1.Overlap(Location))
-			// 	{
-			// 		auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
-			// 														 FRotator::ZeroRotator, SpawnParams);
-			// 		path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
-			// 		SpawnedPath.Add(path);
-			// 	}
-			// }
-
-
-			DrawDebugLine(GetWorld(), Edge.p0, Edge.p1, FColor::Yellow, true);
-		}
+		
+		bIsSeparating = true;
 	}
 }
 
@@ -204,6 +76,143 @@ void ADungeonGenerator::ClearDungeon()
 void ADungeonGenerator::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	if (bIsDungeonGenerating)
+	{
+		if (!bIsSeparating)
+		{
+			for (const auto Cell : SpawnedCells)
+			{
+				if (Cell->GetActorScale().X > MinSize + 10 && Cell->GetActorScale().Y > MinSize + 10)
+				{
+					UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(
+						Cell->GetStaticMeshComponent()->GetMaterial(0), NULL);
+					material->SetVectorParameterValue(FName(TEXT("SurfaceColor")), FLinearColor(0.9f, 0.1f, 0.1f));
+					Cell->GetStaticMeshComponent()->SetMaterial(0, material);
+			
+					Cell->SetActorLocation(RoundM(Cell->GetActorLocation(), SnapSize));
+					Rooms.Add(Cell->GetActorLocation());
+					
+				
+				}else if(UKismetMathLibrary::RandomFloat() > 0.85)
+				{
+					UMaterialInstanceDynamic* material = UMaterialInstanceDynamic::Create(
+						Cell->GetStaticMeshComponent()->GetMaterial(0), NULL);
+					material->SetVectorParameterValue(FName(TEXT("SurfaceColor")), FLinearColor(0.9f, 0.1f, 0.1f));
+					Cell->GetStaticMeshComponent()->SetMaterial(0, material);
+
+					Cell->SetActorLocation(RoundM(Cell->GetActorLocation(), SnapSize));
+					Rooms.Add(Cell->GetActorLocation());
+				}
+				else
+				{
+					Cell->GetStaticMeshComponent()->SetVisibility(false);
+				}
+			}
+			
+			auto DT = DelaunayTriangle3D::triangulate<FVector>(Rooms);
+			auto MST = MST::MinimumSpanningTree(DT.edges, DT.edges[0].p0);
+			
+			for (auto Edge : DT.edges)
+			{
+				if (UKismetMathLibrary::RandomFloat() > 0.9)
+				{
+					MST.push_back(Edge);
+				}
+			}
+			
+			//Gen Pathways;
+			for (auto Edge : MST)
+			{
+
+				//DGEdge dgEdge = GetClosestEdge(Edge.p0, Edge.p1);
+				
+				FVector pathLoc = Edge.p1 - Edge.p0;
+				int countX = trunc(pathLoc.X / SectionLegnth);
+				int countY = trunc(pathLoc.Y / SectionLegnth);
+				int dirX = countX < 0 ? -1 : 1;
+				int dirY = countY < 0 ? -1 : 1;
+			
+				int TotalBlocksToSpawn = abs(countX) + abs(countY) + 2;
+			
+				FVector Location;
+				Location.X = Edge.p0.X + (SectionLegnth/2);
+				Location.Y = Edge.p0.Y + (SectionLegnth/2);
+			
+				while (TotalBlocksToSpawn > 0)
+				{
+					//spawn Y
+					if (TotalBlocksToSpawn <= abs(countY))
+					{
+						FActorSpawnParameters SpawnParams;
+						SpawnParams.bNoFail = false;
+						SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
+				
+						Location.Y += SectionLegnth*dirY;
+
+						if (!IsOverlappingRoom(Location) && !SpawnedPath.ContainsByPredicate(
+							[&](AStaticMeshActor* path){return Location == path->GetActorLocation();}))
+						{
+							auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
+																	 FRotator::ZeroRotator, SpawnParams);
+						
+							path->SetMobility(EComponentMobility::Movable);
+							path->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+							path->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+							path->GetStaticMeshComponent()->SetCollisionObjectType(ECC_WorldDynamic);
+							path->GetStaticMeshComponent()->SetCollisionResponseToAllChannels(ECR_Block);
+							path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
+							SpawnedPath.Add(path);
+						}
+						--TotalBlocksToSpawn;
+						continue;
+					}
+			
+					//spawn x
+					FActorSpawnParameters SpawnParams;
+					SpawnParams.bNoFail = false;
+					SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
+				
+					Location.X += SectionLegnth*dirX;
+				
+					if (!IsOverlappingRoom(Location) && !SpawnedPath.ContainsByPredicate(
+						[&](AStaticMeshActor* path){return Location == path->GetActorLocation();}))
+					{
+						auto path = GetWorld()->SpawnActor<AStaticMeshActor>(AStaticMeshActor::StaticClass(), Location,
+																 FRotator::ZeroRotator, SpawnParams);
+						
+						path->SetMobility(EComponentMobility::Movable);
+						path->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
+						path->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+						path->GetStaticMeshComponent()->SetCollisionObjectType(ECC_WorldDynamic);
+						path->GetStaticMeshComponent()->SetCollisionResponseToAllChannels(ECR_Block);
+						path->GetStaticMeshComponent()->SetStaticMesh(PathMesh);
+						SpawnedPath.Add(path);
+					}
+					--TotalBlocksToSpawn;
+				}
+			
+				//DrawDebugLine(GetWorld(), Edge.p0, Edge.p1, FColor::Yellow, true);
+			}
+
+			bIsDungeonGenerating = false;
+		}
+		else
+		{
+			FVector Vel = FVector::ZeroVector;
+			for (const auto Cell : SpawnedCells)
+			{
+				//Separate
+				
+				const FVector Force = Separate(Cell);
+				Vel += Force;
+				Cell->SetActorLocation(Cell->GetActorLocation() + Force);
+				//Determine which cells can be rooms
+			}
+
+			bIsSeparating = Vel != FVector::ZeroVector;
+		}
+	}
 }
 
 FVector ADungeonGenerator::Separate(AStaticMeshActor* CurrentCell)
@@ -219,11 +228,17 @@ FVector ADungeonGenerator::Separate(AStaticMeshActor* CurrentCell)
 			FVector targetLoc = Cell->GetActorLocation();
 			const float Distance = FVector::DistXY(currentLoc, targetLoc);
 
-			const float scale = CurrentCell->GetActorScale().Length() * 100;
-
-			if (Distance < MaxDistance)
+			if (Distance == 0)
 			{
-				Velocity += (currentLoc - targetLoc) / CurrentCell->GetActorScale();
+				NeighborCount = 1;
+				Velocity = FVector(MinDistance, MinDistance, 0.);
+			}
+			
+			if (Distance <= MinDistance)
+			{
+				Bounds b;
+				CurrentCell->GetActorBounds(true, b.Origin, b.Extent);
+				Velocity += (currentLoc - targetLoc) / b.Extent.Length();
 				NeighborCount++;
 			}
 		}
@@ -235,9 +250,8 @@ FVector ADungeonGenerator::Separate(AStaticMeshActor* CurrentCell)
 	}
 
 	Velocity /= NeighborCount;
-	//Velocity *= -1;
 	Velocity.Normalize(1);
-	return Velocity * 10000;
+	return Velocity*100;
 }
 
 FVector ADungeonGenerator::GetRandomPointInCircle(float radius)
@@ -320,4 +334,24 @@ DGEdge ADungeonGenerator::GetClosestEdge(FVector start, FVector end)
 	sortarr.Sort();
 
 	return sortarr[0];
+}
+
+bool ADungeonGenerator::IsOverlappingRoom(FVector loc)
+{
+	TArray<AStaticMeshActor*> rooms = SpawnedCells.FilterByPredicate([](AStaticMeshActor* cell)
+											  {return cell->GetStaticMeshComponent()->IsVisible(); });
+	
+	for (auto Room : rooms)
+	{
+		Bounds b;
+
+		Room->GetActorBounds(true, b.Origin, b.Extent);
+
+		if(b.Overlap(loc))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
