@@ -39,7 +39,7 @@ void ADungeonGenerator::GenerateDungeon()
 			                                                FRotator::ZeroRotator, SpawnParams);
 			Cell->SetActorScale3D(FVector(FMath::RandRange(MinSize, MaxSize)*2,
 			                              FMath::RandRange(MinSize, MaxSize)*2,
-			                              0.5));
+			                              2));
 			
 			Cell->SetMobility(EComponentMobility::Movable);
 			Cell->GetStaticMeshComponent()->SetMobility(EComponentMobility::Movable);
@@ -132,12 +132,16 @@ void ADungeonGenerator::Tick(float DeltaTime)
 				int countY = trunc(pathLoc.Y / SectionLegnth);
 				int dirX = countX < 0 ? -1 : 1;
 				int dirY = countY < 0 ? -1 : 1;
-			
-				int TotalBlocksToSpawn = abs(countX) + abs(countY) + 2;
+
+				countX = abs(countX) + (dirX == 1 ? 0 : 1);
+				countY = abs(countY) + (dirY == 1 ? 0 : 1);
+				
+				int TotalBlocksToSpawn = abs(countX) + abs(countY) ;
 			
 				FVector Location;
-				Location.X = Edge.p0.X + (SectionLegnth/2);
-				Location.Y = Edge.p0.Y + (SectionLegnth/2);
+				Location.X = Edge.p0.X + SectionLegnth * dirX;
+				Location.Y = Edge.p0.Y + SectionLegnth/2 ;
+				Location.Z = -5;
 			
 				while (TotalBlocksToSpawn > 0)
 				{
@@ -149,7 +153,7 @@ void ADungeonGenerator::Tick(float DeltaTime)
 						SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
 				
 						Location.Y += SectionLegnth*dirY;
-
+						//DrawDebugBox(GetWorld(), RoundM(Location, SnapSize), FVector(SectionLegnth/2), FColor::Blue, true);
 						if (!IsOverlappingRoom(Location) && !SpawnedPath.ContainsByPredicate(
 							[&](AStaticMeshActor* path){return Location == path->GetActorLocation();}))
 						{
@@ -174,7 +178,7 @@ void ADungeonGenerator::Tick(float DeltaTime)
 					SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::DontSpawnIfColliding;
 				
 					Location.X += SectionLegnth*dirX;
-				
+					//DrawDebugBox(GetWorld(),  RoundM(Location, SnapSize), FVector(SectionLegnth/2), FColor::Blue, true);
 					if (!IsOverlappingRoom(Location) && !SpawnedPath.ContainsByPredicate(
 						[&](AStaticMeshActor* path){return Location == path->GetActorLocation();}))
 					{

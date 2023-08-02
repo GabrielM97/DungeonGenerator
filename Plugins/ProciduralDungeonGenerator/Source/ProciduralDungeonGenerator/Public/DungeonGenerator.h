@@ -16,8 +16,8 @@ struct Bounds
 
 	bool Overlap(FVector pos)
 	{
-		return (pos.X >= Origin.X - Extent.X && pos.X <= Origin.X + Extent.X) &&
-			  (pos.Y >= Origin.Y - Extent.Y && pos.Y <= Origin.Y + Extent.Y);
+		return (pos.X > Origin.X - Extent.X && pos.X < Origin.X + Extent.X) &&
+			  (pos.Y > Origin.Y - Extent.Y && pos.Y < Origin.Y + Extent.Y);
 	}
 };
 
